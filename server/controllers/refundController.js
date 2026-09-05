@@ -1,8 +1,18 @@
 import RefundRequest from "../models/RefundRequest.js";
+import MpesaPayment from "../models/MpesaPayment.js";
+import Invoice from "../models/Invoice.js";
 import { logFinancialEvent } from "../services/financialAuditService.js";
 
 const canAccessRefund = (req, refundRequest) =>
   req.user.role === "super_admin" || String(refundRequest.tenantId) === String(req.user.tenantId);
+
+const resolveRefundCurrency = async (paymentId) => {
+  if (!paymentId) return "KES";
+  const payment = await MpesaPayment.findById(paymentId).select("invoiceId").lean();
+  if (!payment?.invoiceId) return "KES";
+  const invoice = await Invoice.findById(payment.invoiceId).select("currency").lean();
+  return invoice?.currency || "KES";
+};
 
 const updateRefundStatus = async (req, res, status, defaultNotes) => {
   const refundRequest = await RefundRequest.findById(req.params.id);
@@ -13,28 +23,28 @@ const updateRefundStatus = async (req, res, status, defaultNotes) => {
   }
 
   const previousStatus = refundRequest.status;
-  if (previousStatus === status) {
-    return res.json({ success: true, request: refundRequest });
-  }
-
+  const statusChanged = previousStatus !== status;
   refundRequest.status = status;
   refundRequest.reviewedBy = req.user._id;
   refundRequest.reviewedAt = new Date();
   refundRequest.notes = req.body.notes || defaultNotes;
   await refundRequest.save();
-  await logFinancialEvent({
-    tenantId: refundRequest.tenantId,
-    actorId: req.user._id,
-    action: `refund.${status}`,
-    entityType: "RefundRequest",
-    entityId: refundRequest._id,
-    amount: refundRequest.amount,
-    currency: "KES",
-    req,
-    before: { status: previousStatus },
-    after: { status: refundRequest.status },
-    metadata: { notes: refundRequest.notes },
-  });
+  if (statusChanged) {
+    const currency = await resolveRefundCurrency(refundRequest.paymentId);
+    await logFinancialEvent({
+      tenantId: refundRequest.tenantId,
+      actorId: req.user._id,
+      action: `refund.${status}`,
+      entityType: "RefundRequest",
+      entityId: refundRequest._id,
+      amount: refundRequest.amount,
+      currency,
+      req,
+      before: { status: previousStatus },
+      after: { status: refundRequest.status },
+      metadata: { notes: refundRequest.notes },
+    });
+  }
 
   res.json({ success: true, request: refundRequest });
 };
@@ -49,6 +59,7 @@ export const createRefundRequest = async (req, res) => {
     userId: req.user._id,
     tenantId: req.user.tenantId,
   });
+  const currency = await resolveRefundCurrency(refundRequest.paymentId);
   await logFinancialEvent({
     tenantId: req.user.tenantId,
     actorId: req.user._id,
@@ -56,7 +67,7 @@ export const createRefundRequest = async (req, res) => {
     entityType: "RefundRequest",
     entityId: refundRequest._id,
     amount: refundRequest.amount,
-    currency: "KES",
+    currency,
     req,
     after: { status: refundRequest.status },
     metadata: { paymentId: refundRequest.paymentId, reason: refundRequest.reason },

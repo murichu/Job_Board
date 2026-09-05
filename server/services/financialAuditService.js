@@ -1,4 +1,5 @@
 import FinancialAuditLog from "../models/FinancialAuditLog.js";
+import { resolveRequestId, resolveRequestIp } from "../utils/requestMeta.js";
 
 export const logFinancialEvent = async ({
   tenantId,
@@ -22,8 +23,8 @@ export const logFinancialEvent = async ({
       entityId,
       amount,
       currency,
-      requestId: req?.requestId || req?.headers?.["x-request-id"] || "",
-      ip: req?.headers["x-forwarded-for"]?.split(",")[0] || req?.ip || "",
+      requestId: resolveRequestId(req),
+      ip: resolveRequestIp(req),
       userAgent: req?.headers["user-agent"] || "",
       before,
       after,

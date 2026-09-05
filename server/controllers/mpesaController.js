@@ -4,6 +4,7 @@ import Invoice from "../models/Invoice.js";
 import { stkPush } from "../utils/mpesa.js";
 import { evaluateMpesaFraud } from "../services/mpesaFraudService.js";
 import { logFinancialEvent } from "../services/financialAuditService.js";
+import { resolveRequestIp } from "../utils/requestMeta.js";
 
 export const createStkPush = async (req, res) => {
   const { phone, amount } = req.body;
@@ -61,7 +62,7 @@ export const handleMpesaCallback = async (req, res) => {
   if (!payment) return res.sendStatus(404);
   const previousStatus = payment.status;
 
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.ip;
+  const ip = resolveRequestIp(req);
 
   payment.callbackIp = ip;
   payment.status = data.ResultCode === 0 ? "paid" : "failed";

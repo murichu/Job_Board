@@ -1,7 +1,5 @@
 import AuditLog from "../models/AuditLog.js";
-
-const resolveIp = (req) =>
-  req?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || req?.ip || "";
+import { resolveRequestId, resolveRequestIp } from "../utils/requestMeta.js";
 
 export const logAuditEvent = async ({
   req,
@@ -17,8 +15,8 @@ export const logAuditEvent = async ({
       userId,
       tenantId,
       action,
-      requestId: req?.requestId || req?.headers?.["x-request-id"] || "",
-      ip: resolveIp(req),
+      requestId: resolveRequestId(req),
+      ip: resolveRequestIp(req),
       userAgent: req?.headers?.["user-agent"] || "",
       metadata,
     });

@@ -7,6 +7,15 @@ import { sendEmail } from "../services/emailService.js";
 import { invoicePaidTemplate } from "../templates/emailTemplates.js";
 import { logFinancialEvent } from "../services/financialAuditService.js";
 
+const resolveRefundCurrency = async ({ invoice, paymentId }) => {
+  if (invoice?.currency) return invoice.currency;
+  if (!paymentId) return "KES";
+  const payment = await MpesaPayment.findById(paymentId).select("invoiceId").lean();
+  if (!payment?.invoiceId) return "KES";
+  const paymentInvoice = await Invoice.findById(payment.invoiceId).select("currency").lean();
+  return paymentInvoice?.currency || "KES";
+};
+
 export const getSubscription = async (req, res) => {
   const sub = await TenantSubscription.findOne({ tenantId: req.user.tenantId });
   res.json({ success: true, sub, subscription: sub });
@@ -26,6 +35,7 @@ export const requestRefund = async (req, res) => {
   const { invoiceId, paymentId, amount, reason = "Customer requested refund" } = req.body;
 
   const invoice = invoiceId ? await Invoice.findOne({ _id: invoiceId, tenantId: req.user.tenantId }) : null;
+  const currency = await resolveRefundCurrency({ invoice, paymentId });
 
   const refundRequest = await RefundRequest.create({
     paymentId: paymentId || null,
@@ -41,7 +51,7 @@ export const requestRefund = async (req, res) => {
     entityType: "RefundRequest",
     entityId: refundRequest._id,
     amount: refundRequest.amount,
-    currency: "KES",
+    currency,
     req,
     after: { status: refundRequest.status },
     metadata: {
