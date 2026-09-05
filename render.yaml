@@ -1,0 +1,65 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: job-portal-backend
+    env: node
+    rootDir: server
+    buildCommand: npm run build
+    startCommand: npm start
+    plan: starter
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGO_URI
+        value: mongodb+srv://murichuchichi:Raje1680!%40%23%24@cluster0.2h9iyxw.mongodb.net
+      - key: MONGO_DB_NAME
+        value: Job-portal
+      - key: JWT_SECRET
+        value: 84d906e004e861a05c5135ac1a860e243e14ec747497d7ea9927c88a7a975964
+      - key: CLIENT_URL
+        value: http://localhost:5174
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: job-portal-redis
+          property: connectionString
+      - key: CLOUDINARY_NAME
+        value: dw6atnxja
+      - key: CLOUDINARY_API_KEY
+        value: 984547232119995
+      - key: CLOUDINARY_SECRET_KEY
+        value: YPQT0bK0FJqJGZEgHnDglrGCOfU
+      - key: EMAIL_ENABLED
+        value: true
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_SECURE
+        value: false
+      - key: EMAIL_USER
+        value: murichuchichi@gmail.com
+      - key: EMAIL_PASSWORD
+        value: lrek jmbz cdrk otnh
+      - key: EMAIL_FROM_NAME
+        value: Job Portal Platform
+      - key: APP_URL
+        value: http://localhost:5000
+      - key: SAVED_SEARCH_SCHEDULER_INTERVAL_MS
+        value: 3600000
+
+# Databases
+databases:
+  - name: job-portal-mongodb
+    type: mongodb
+    version: "7.0"
+    plan: starter
+
+  - name: job-portal-redis
+    type: redis
+    version: "7"
+    plan: starter
