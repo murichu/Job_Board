@@ -6,15 +6,7 @@ import { generateInvoicePDF } from "../services/pdfService.js";
 import { sendEmail } from "../services/emailService.js";
 import { invoicePaidTemplate } from "../templates/emailTemplates.js";
 import { logFinancialEvent } from "../services/financialAuditService.js";
-
-const resolveRefundCurrency = async ({ invoice, paymentId }) => {
-  if (invoice?.currency) return invoice.currency;
-  if (!paymentId) return "KES";
-  const payment = await MpesaPayment.findById(paymentId).select("invoiceId").lean();
-  if (!payment?.invoiceId) return "KES";
-  const paymentInvoice = await Invoice.findById(payment.invoiceId).select("currency").lean();
-  return paymentInvoice?.currency || "KES";
-};
+import { resolveRefundCurrency } from "../services/refundAuditService.js";
 
 export const getSubscription = async (req, res) => {
   const sub = await TenantSubscription.findOne({ tenantId: req.user.tenantId });

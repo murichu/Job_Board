@@ -92,7 +92,10 @@ export const handleMpesaCallback = async (req, res) => {
   await logFinancialEvent({
     tenantId: payment.tenantId,
     actorId: payment.userId || null,
-    action: `mpesa.callback_${payment.status}`,
+    action:
+      previousStatus === payment.status
+        ? "mpesa.callback_duplicate"
+        : `mpesa.callback_${payment.status}`,
     entityType: "MpesaPayment",
     entityId: payment._id,
     amount: payment.amount,

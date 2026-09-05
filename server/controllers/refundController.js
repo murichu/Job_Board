@@ -1,18 +1,9 @@
 import RefundRequest from "../models/RefundRequest.js";
-import MpesaPayment from "../models/MpesaPayment.js";
-import Invoice from "../models/Invoice.js";
 import { logFinancialEvent } from "../services/financialAuditService.js";
+import { resolveRefundCurrency } from "../services/refundAuditService.js";
 
 const canAccessRefund = (req, refundRequest) =>
   req.user.role === "super_admin" || String(refundRequest.tenantId) === String(req.user.tenantId);
-
-const resolveRefundCurrency = async (paymentId) => {
-  if (!paymentId) return "KES";
-  const payment = await MpesaPayment.findById(paymentId).select("invoiceId").lean();
-  if (!payment?.invoiceId) return "KES";
-  const invoice = await Invoice.findById(payment.invoiceId).select("currency").lean();
-  return invoice?.currency || "KES";
-};
 
 const updateRefundStatus = async (req, res, status, defaultNotes) => {
   const refundRequest = await RefundRequest.findById(req.params.id);
@@ -30,7 +21,7 @@ const updateRefundStatus = async (req, res, status, defaultNotes) => {
   refundRequest.notes = req.body.notes || defaultNotes;
   await refundRequest.save();
   if (statusChanged) {
-    const currency = await resolveRefundCurrency(refundRequest.paymentId);
+    const currency = await resolveRefundCurrency({ paymentId: refundRequest.paymentId });
     await logFinancialEvent({
       tenantId: refundRequest.tenantId,
       actorId: req.user._id,
@@ -59,7 +50,7 @@ export const createRefundRequest = async (req, res) => {
     userId: req.user._id,
     tenantId: req.user.tenantId,
   });
-  const currency = await resolveRefundCurrency(refundRequest.paymentId);
+  const currency = await resolveRefundCurrency({ paymentId: refundRequest.paymentId });
   await logFinancialEvent({
     tenantId: req.user.tenantId,
     actorId: req.user._id,
