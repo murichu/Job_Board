@@ -3,13 +3,14 @@ import TenantSubscription from "../models/TenantSubscription.js";
 import Invoice from "../models/Invoice.js";
 import { stkPush } from "../utils/mpesa.js";
 import { evaluateMpesaFraud } from "../services/mpesaFraudService.js";
+import { logFinancialEvent } from "../services/financialAuditService.js";
 
 export const createStkPush = async (req, res) => {
   const { phone, amount } = req.body;
 
   const response = await stkPush({ phone, amount, accountReference: "Subscription" });
 
-  await MpesaPayment.create({
+  const payment = await MpesaPayment.create({
     userId: req.user._id,
     tenantId: req.user.tenantId,
     accountType: "tenant",
@@ -17,6 +18,18 @@ export const createStkPush = async (req, res) => {
     amount,
     merchantRequestId: response.MerchantRequestID,
     checkoutRequestId: response.CheckoutRequestID,
+  });
+  await logFinancialEvent({
+    tenantId: req.user.tenantId,
+    actorId: req.user._id,
+    action: "mpesa.stk_push_initiated",
+    entityType: "MpesaPayment",
+    entityId: payment._id,
+    amount: payment.amount,
+    currency: "KES",
+    req,
+    after: { status: payment.status, checkoutRequestId: payment.checkoutRequestId },
+    metadata: { merchantRequestId: payment.merchantRequestId, phone: payment.phone },
   });
 
   res.json({
@@ -46,6 +59,7 @@ export const handleMpesaCallback = async (req, res) => {
   const data = req.body.Body.stkCallback;
   const payment = await MpesaPayment.findOne({ checkoutRequestId: data.CheckoutRequestID });
   if (!payment) return res.sendStatus(404);
+  const previousStatus = payment.status;
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.ip;
 
@@ -74,6 +88,19 @@ export const handleMpesaCallback = async (req, res) => {
   }
 
   await payment.save();
+  await logFinancialEvent({
+    tenantId: payment.tenantId,
+    actorId: payment.userId || null,
+    action: `mpesa.callback_${payment.status}`,
+    entityType: "MpesaPayment",
+    entityId: payment._id,
+    amount: payment.amount,
+    currency: "KES",
+    req,
+    before: { status: previousStatus },
+    after: { status: payment.status, suspicious: payment.suspicious },
+    metadata: { resultCode: payment.resultCode, checkoutRequestId: payment.checkoutRequestId },
+  });
 
   if (global.io) {
     global.io.emit("payment_update", {

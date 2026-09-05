@@ -11,6 +11,7 @@ import { applicationStatusTemplate, interviewInviteTemplate } from "../templates
 import ExcelJS from "exceljs";
 import { logger } from "../utils/logger.js";
 import { issueRefreshSession, rotateRefreshSession, revokeRefreshSession, getRefreshCookieOptions, getClearRefreshCookieOptions, REFRESH_COOKIE_NAME } from "../utils/refreshToken.js";
+import { logAuditEvent } from "../services/auditLogService.js";
 
 const deriveJobStatus = (job) => {
   if (job?.isDeleted) return "expired";
@@ -135,6 +136,16 @@ export const registerCompany = async (req, res) => {
     const accessToken = generateToken(company._id, "company");
     const refreshCookie = await issueRefreshSession({ actorId: company._id, actorType: "company", tenantId: company._id, req });
     res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+    await logAuditEvent({
+      req,
+      tenantId: company._id,
+      action: "company.register",
+      metadata: {
+        companyId: company._id,
+        actorType: "company",
+        email: sanitizedEmail,
+      },
+    });
 
     return res.status(201).json({
       success: true,
@@ -207,6 +218,16 @@ export const loginCompany = async (req, res) => {
     const accessToken = generateToken(company._id, "company");
     const refreshCookie = await issueRefreshSession({ actorId: company._id, actorType: "company", tenantId: company._id, req });
     res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+    await logAuditEvent({
+      req,
+      tenantId: company._id,
+      action: "company.login",
+      metadata: {
+        companyId: company._id,
+        actorType: "company",
+        email: company.email,
+      },
+    });
 
     res.json({
       success: true,
@@ -400,6 +421,16 @@ export const postJob = async (req, res) => {
       approvalStatus: isDraft ? "draft" : "pending",
       jobStatus: "draft",
       visible: false,
+    });
+    await logAuditEvent({
+      req,
+      tenantId: companyId,
+      action: "job.posted",
+      metadata: {
+        actorType: "company",
+        jobId: newJob._id,
+        approvalStatus: newJob.approvalStatus,
+      },
     });
 
     return res.status(201).json({
@@ -690,6 +721,17 @@ export const ChangeJobApplicationStatus = async (req, res) => {
       changedAt: new Date(),
     });
     await application.save();
+    await logAuditEvent({
+      req,
+      tenantId: companyId,
+      action: "application.status_changed",
+      metadata: {
+        actorType: "company",
+        applicationId: application._id,
+        jobId: application.jobId?._id,
+        status,
+      },
+    });
 
     try {
       const mail = applicationStatusTemplate({

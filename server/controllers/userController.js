@@ -12,6 +12,7 @@ import FileDownload from "../models/FileDownload.js";
 import { createSignedFileToken, verifySignedFileToken } from "../utils/signedFileAccess.js";
 import { logger } from "../utils/logger.js";
 import { issueRefreshSession, rotateRefreshSession, revokeRefreshSession, getRefreshCookieOptions, getClearRefreshCookieOptions, REFRESH_COOKIE_NAME } from "../utils/refreshToken.js";
+import { logAuditEvent } from "../services/auditLogService.js";
 
 const hashUrl = (url) => crypto.createHash("sha256").update(url).digest("hex");
 
@@ -121,6 +122,12 @@ export const registerUser = async (req, res) => {
     const accessToken = generateToken(user._id, "user");
     const refreshCookie = await issueRefreshSession({ actorId: user._id, actorType: "user", req });
     res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+    await logAuditEvent({
+      req,
+      userId: user._id,
+      action: "user.register",
+      metadata: { email: sanitizedEmail },
+    });
 
     return res.status(201).json({
       success: true,
@@ -210,6 +217,12 @@ export const loginUser = async (req, res) => {
     const accessToken = generateToken(user._id, "user");
     const refreshCookie = await issueRefreshSession({ actorId: user._id, actorType: "user", req });
     res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+    await logAuditEvent({
+      req,
+      userId: user._id,
+      action: "user.login",
+      metadata: { email: sanitizedEmail },
+    });
 
     res.json({
       success: true,
@@ -381,6 +394,13 @@ export const applyForJob = async (req, res) => {
       userId,
       jobId,
       date: Date.now(),
+    });
+    await logAuditEvent({
+      req,
+      userId,
+      tenantId: jobData.companyId,
+      action: "job.apply",
+      metadata: { jobId },
     });
 
     res

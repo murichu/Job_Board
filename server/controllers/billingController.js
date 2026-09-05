@@ -5,6 +5,7 @@ import RefundRequest from "../models/RefundRequest.js";
 import { generateInvoicePDF } from "../services/pdfService.js";
 import { sendEmail } from "../services/emailService.js";
 import { invoicePaidTemplate } from "../templates/emailTemplates.js";
+import { logFinancialEvent } from "../services/financialAuditService.js";
 
 export const getSubscription = async (req, res) => {
   const sub = await TenantSubscription.findOne({ tenantId: req.user.tenantId });
@@ -32,6 +33,22 @@ export const requestRefund = async (req, res) => {
     userId: req.user._id,
     amount: amount || invoice?.amount || 0,
     reason,
+  });
+  await logFinancialEvent({
+    tenantId: req.user.tenantId,
+    actorId: req.user._id,
+    action: "refund.requested",
+    entityType: "RefundRequest",
+    entityId: request._id,
+    amount: request.amount,
+    currency: "KES",
+    req,
+    after: { status: request.status },
+    metadata: {
+      paymentId: request.paymentId,
+      invoiceId: invoice?._id || null,
+      reason: request.reason,
+    },
   });
 
   res.json({ success: true, request });

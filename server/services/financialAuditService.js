@@ -22,6 +22,7 @@ export const logFinancialEvent = async ({
       entityId,
       amount,
       currency,
+      requestId: req?.requestId || req?.headers?.["x-request-id"] || "",
       ip: req?.headers["x-forwarded-for"]?.split(",")[0] || req?.ip || "",
       userAgent: req?.headers["user-agent"] || "",
       before,
