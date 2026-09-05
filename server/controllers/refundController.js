@@ -5,40 +5,40 @@ const canAccessRefund = (req, refundRequest) =>
   req.user.role === "super_admin" || String(refundRequest.tenantId) === String(req.user.tenantId);
 
 const updateRefundStatus = async (req, res, status, defaultNotes) => {
-  const request = await RefundRequest.findById(req.params.id);
-  if (!request) return res.status(404).json({ success: false, message: "Refund request not found" });
+  const refundRequest = await RefundRequest.findById(req.params.id);
+  if (!refundRequest) return res.status(404).json({ success: false, message: "Refund request not found" });
 
-  if (!canAccessRefund(req, request)) {
+  if (!canAccessRefund(req, refundRequest)) {
     return res.status(403).json({ success: false, message: "Forbidden" });
   }
 
-  const previousStatus = request.status;
-  request.status = status;
-  request.reviewedBy = req.user._id;
-  request.reviewedAt = new Date();
-  request.notes = req.body.notes || defaultNotes;
-  await request.save();
+  const previousStatus = refundRequest.status;
+  refundRequest.status = status;
+  refundRequest.reviewedBy = req.user._id;
+  refundRequest.reviewedAt = new Date();
+  refundRequest.notes = req.body.notes || defaultNotes;
+  await refundRequest.save();
   await logFinancialEvent({
-    tenantId: request.tenantId,
+    tenantId: refundRequest.tenantId,
     actorId: req.user._id,
     action: `refund.${status}`,
     entityType: "RefundRequest",
-    entityId: request._id,
-    amount: request.amount,
+    entityId: refundRequest._id,
+    amount: refundRequest.amount,
     currency: "KES",
     req,
     before: { status: previousStatus },
-    after: { status: request.status },
-    metadata: { notes: request.notes },
+    after: { status: refundRequest.status },
+    metadata: { notes: refundRequest.notes },
   });
 
-  res.json({ success: true, request });
+  res.json({ success: true, request: refundRequest });
 };
 
 export const createRefundRequest = async (req, res) => {
   const { paymentId, amount, reason } = req.body;
 
-  const request = await RefundRequest.create({
+  const refundRequest = await RefundRequest.create({
     paymentId,
     amount,
     reason,
@@ -50,15 +50,15 @@ export const createRefundRequest = async (req, res) => {
     actorId: req.user._id,
     action: "refund.requested",
     entityType: "RefundRequest",
-    entityId: request._id,
-    amount: request.amount,
+    entityId: refundRequest._id,
+    amount: refundRequest.amount,
     currency: "KES",
     req,
-    after: { status: request.status },
-    metadata: { paymentId: request.paymentId, reason: request.reason },
+    after: { status: refundRequest.status },
+    metadata: { paymentId: refundRequest.paymentId, reason: refundRequest.reason },
   });
 
-  res.json({ success: true, request });
+  res.json({ success: true, request: refundRequest });
 };
 
 export const getRefundRequests = async (req, res) => {

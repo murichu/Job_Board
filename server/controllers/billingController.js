@@ -27,7 +27,7 @@ export const requestRefund = async (req, res) => {
 
   const invoice = invoiceId ? await Invoice.findOne({ _id: invoiceId, tenantId: req.user.tenantId }) : null;
 
-  const request = await RefundRequest.create({
+  const refundRequest = await RefundRequest.create({
     paymentId: paymentId || null,
     tenantId: req.user.tenantId,
     userId: req.user._id,
@@ -39,19 +39,19 @@ export const requestRefund = async (req, res) => {
     actorId: req.user._id,
     action: "refund.requested",
     entityType: "RefundRequest",
-    entityId: request._id,
-    amount: request.amount,
+    entityId: refundRequest._id,
+    amount: refundRequest.amount,
     currency: "KES",
     req,
-    after: { status: request.status },
+    after: { status: refundRequest.status },
     metadata: {
-      paymentId: request.paymentId,
+      paymentId: refundRequest.paymentId,
       invoiceId: invoice?._id || null,
-      reason: request.reason,
+      reason: refundRequest.reason,
     },
   });
 
-  res.json({ success: true, request });
+  res.json({ success: true, request: refundRequest });
 };
 
 export const downloadInvoicePdf = async (req, res) => {
