@@ -1,12 +1,11 @@
 import SavedSearch from '../models/SavedSearch.js';
 import { Queue } from 'bullmq';
-import { getQueueConnection } from '../lib/redis.js';
+import connection from '../utils/redis.js';
 
 // This scheduler enqueues saved-search run jobs for saved searches whose lastRunAt
 // exceeds their configured frequency. Run this as a separate process (cron or pm2).
 
 const POLL_INTERVAL_MS = Number(process.env.SAVED_SEARCH_SCHEDULER_INTERVAL_MS) || 1000 * 60 * 60; // default: 1 hour
-const connection = getQueueConnection();
 const savedSearchQueue = new Queue('saved-searches', { connection });
 
 async function enqueueDueSavedSearches() {

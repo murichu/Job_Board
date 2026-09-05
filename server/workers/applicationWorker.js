@@ -1,10 +1,8 @@
 import { Worker } from 'bullmq';
 import Application from '../models/Application.js';
 import User from '../models/User.js';
-import { getQueueConnection } from '../lib/redis.js';
+import connection from '../utils/redis.js';
 import { sendEmail } from '../lib/email.js';
-
-const connection = getQueueConnection();
 
 const worker = new Worker('application-notifications', async job => {
   const data = job.data;

@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import CalendarAuth from '../models/CalendarAuth.js';
+import CalendarAuth from '../../models/CalendarAuth.js';
 import { encrypt, decrypt } from '../lib/crypto.js';
 
 // Scopes used for calendar events

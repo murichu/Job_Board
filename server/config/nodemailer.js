@@ -1,4 +1,7 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const EMAIL_ENABLED = process.env.EMAIL_ENABLED !== "false";
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
