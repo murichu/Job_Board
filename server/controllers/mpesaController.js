@@ -6,6 +6,12 @@ import { evaluateMpesaFraud } from "../services/mpesaFraudService.js";
 import { logFinancialEvent } from "../services/financialAuditService.js";
 import { resolveRequestIp } from "../utils/requestMeta.js";
 
+const maskPhone = (value = "") => {
+  const digits = String(value);
+  if (digits.length <= 4) return "****";
+  return `${"*".repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
+};
+
 export const createStkPush = async (req, res) => {
   const { phone, amount } = req.body;
 
@@ -30,7 +36,10 @@ export const createStkPush = async (req, res) => {
     currency: "KES",
     req,
     after: { status: payment.status, checkoutRequestId: payment.checkoutRequestId },
-    metadata: { merchantRequestId: payment.merchantRequestId, phone: payment.phone },
+    metadata: {
+      merchantRequestId: payment.merchantRequestId,
+      phoneMasked: maskPhone(payment.phone),
+    },
   });
 
   res.json({

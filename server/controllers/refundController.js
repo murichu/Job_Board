@@ -1,4 +1,6 @@
 import RefundRequest from "../models/RefundRequest.js";
+import MpesaPayment from "../models/MpesaPayment.js";
+import mongoose from "mongoose";
 import { logFinancialEvent } from "../services/financialAuditService.js";
 import { resolveRefundCurrency } from "../services/refundAuditService.js";
 
@@ -46,9 +48,19 @@ const updateRefundStatus = async (req, res, status, defaultNotes) => {
 
 export const createRefundRequest = async (req, res) => {
   const { paymentId, amount, reason } = req.body;
+  if (!paymentId || !mongoose.Types.ObjectId.isValid(String(paymentId))) {
+    return res.status(400).json({ success: false, message: "Valid payment ID is required." });
+  }
+  const payment = await MpesaPayment.findOne({
+    _id: paymentId,
+    tenantId: req.user.tenantId,
+  }).select("_id");
+  if (!payment) {
+    return res.status(404).json({ success: false, message: "Payment not found" });
+  }
 
   const refundRequest = await RefundRequest.create({
-    paymentId,
+    paymentId: payment._id,
     amount,
     reason,
     userId: req.user._id,

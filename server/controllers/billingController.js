@@ -26,15 +26,35 @@ export const getPaymentHistory = async (req, res) => {
 
 export const requestRefund = async (req, res) => {
   const { invoiceId, paymentId, amount, reason = "Customer requested refund" } = req.body;
+  if (!paymentId) {
+    return res.status(400).json({ success: false, message: "Payment ID is required." });
+  }
   if (invoiceId && !mongoose.Types.ObjectId.isValid(String(invoiceId))) {
     return res.status(400).json({ success: false, message: "Invalid invoice ID." });
   }
+  if (!mongoose.Types.ObjectId.isValid(String(paymentId))) {
+    return res.status(400).json({ success: false, message: "Invalid payment ID." });
+  }
 
   const invoice = invoiceId ? await Invoice.findOne({ _id: invoiceId, tenantId: req.user.tenantId }) : null;
+  if (invoiceId && !invoice) {
+    return res.status(404).json({ success: false, message: "Invoice not found" });
+  }
+  const payment = await MpesaPayment.findOne({
+    _id: paymentId,
+    tenantId: req.user.tenantId,
+  }).select("_id invoiceId");
+  if (!payment) {
+    return res.status(404).json({ success: false, message: "Payment not found" });
+  }
+  if (invoice && payment.invoiceId && String(payment.invoiceId) !== String(invoice._id)) {
+    return res.status(400).json({ success: false, message: "Invoice and payment do not match." });
+  }
+
   const currency = await resolveRefundCurrency({ invoice, paymentId });
 
   const refundRequest = await RefundRequest.create({
-    paymentId: paymentId || null,
+    paymentId: payment._id,
     tenantId: req.user.tenantId,
     userId: req.user._id,
     amount: amount || invoice?.amount || 0,
