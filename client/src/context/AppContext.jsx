@@ -38,7 +38,30 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config || {};
+    const url = (originalRequest.url || "").toLowerCase();
+    const isAuthEndpoint = ["/login", "/register", "/refresh-token", "/logout"].some((p) => url.includes(p));
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      const scope = url.includes("/api/company/") ? "company" : "user";
+
+      originalRequest._retry = true;
+      try {
+        refreshPromises[scope] = refreshPromises[scope] || requestRefreshToken(scope);
+        const data = await refreshPromises[scope];
+        refreshPromises[scope] = null;
+
+        if (data?.success && data.token) {
+          localStorage.setItem(scope === "company" ? "companyToken" : "Token", data.token);
+          originalRequest.headers = { ...originalRequest.headers, Authorization: `Bearer ${data.token}` };
+          return api(originalRequest);
+        }
+      } catch {
+        refreshPromises[scope] = null;
+      }
+    }
+
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname || "/";
       if (!currentPath.startsWith("/dashboard") && !currentPath.startsWith("/profile") && !currentPath.startsWith("/applications")) {
@@ -57,6 +80,13 @@ const getBackendUrl = () => {
   }
 
   return import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+};
+
+// De-duped per scope so concurrent 401s don't trigger multiple refresh calls at once.
+const refreshPromises = { user: null, company: null };
+const requestRefreshToken = async (scope) => {
+  const { data } = await axios.post(`${getBackendUrl()}/api/${scope}/refresh-token`, {}, { withCredentials: true });
+  return data;
 };
 
 export const AppContextProvider = ({ children }) => {
@@ -139,17 +169,19 @@ export const AppContextProvider = ({ children }) => {
   }, [backendUrl, token]);
 
   const logout = useCallback(() => {
+    api.post(`${backendUrl}/api/user/logout`).catch(() => {});
     localStorage.removeItem("Token");
     setToken(null);
     setUserData(null);
     setUserApplications([]);
-  }, []);
+  }, [backendUrl]);
 
   const logoutCompany = useCallback(() => {
+    api.post(`${backendUrl}/api/company/logout`).catch(() => {});
     localStorage.removeItem("companyToken");
     setCompanyToken(null);
     setCompanyData(null);
-  }, []);
+  }, [backendUrl]);
 
   useEffect(() => {
     if (token) {

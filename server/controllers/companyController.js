@@ -10,6 +10,7 @@ import { sendEmail } from "../services/emailService.js";
 import { applicationStatusTemplate, interviewInviteTemplate } from "../templates/emailTemplates.js";
 import ExcelJS from "exceljs";
 import { logger } from "../utils/logger.js";
+import { issueRefreshSession, rotateRefreshSession, revokeRefreshSession, getRefreshCookieOptions, getClearRefreshCookieOptions, REFRESH_COOKIE_NAME } from "../utils/refreshToken.js";
 
 const deriveJobStatus = (job) => {
   if (job?.isDeleted) return "expired";
@@ -131,6 +132,10 @@ export const registerCompany = async (req, res) => {
     });
 
     // Return success with token
+    const accessToken = generateToken(company._id, "company");
+    const refreshCookie = await issueRefreshSession({ actorId: company._id, actorType: "company", tenantId: company._id, req });
+    res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+
     return res.status(201).json({
       success: true,
       company: {
@@ -143,7 +148,7 @@ export const registerCompany = async (req, res) => {
         companyPhone: company.companyPhone,
         companyLocation: company.companyLocation,
       },
-      token: generateToken(company._id, "company"),
+      token: accessToken,
       message: "Company created successfully",
     });
   } catch (error) {
@@ -199,6 +204,10 @@ export const loginCompany = async (req, res) => {
     }
 
     // If authentication is successful, return company details and a JWT token
+    const accessToken = generateToken(company._id, "company");
+    const refreshCookie = await issueRefreshSession({ actorId: company._id, actorType: "company", tenantId: company._id, req });
+    res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+
     res.json({
       success: true,
       company: {
@@ -207,7 +216,7 @@ export const loginCompany = async (req, res) => {
         email: company.email,
         image: company.image,
       },
-      token: generateToken(company._id, "company"), // Generate a token for the session
+      token: accessToken,
     });
   } catch (error) {
     // Log any unexpected server errors
@@ -240,6 +249,46 @@ export const getCompanyData = async (req, res) => {
       success: false,
       message: "Server error.",
     });
+  }
+};
+
+export const logoutCompany = async (req, res) => {
+  try {
+    const cookieValue = req.cookies?.[REFRESH_COOKIE_NAME];
+    if (cookieValue) await revokeRefreshSession(cookieValue, { actorType: "company" });
+    res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+    res.json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    logger.error("logoutCompany error:", error);
+    res.json({ success: true, message: "Logged out successfully" });
+  }
+};
+
+// Exchanges a valid httpOnly refresh-token cookie for a new short-lived access token, rotating the refresh session.
+export const refreshCompanyToken = async (req, res) => {
+  try {
+    const cookieValue = req.cookies?.[REFRESH_COOKIE_NAME];
+    if (!cookieValue) {
+      return res.status(401).json({ success: false, message: "No refresh token provided" });
+    }
+
+    const result = await rotateRefreshSession(cookieValue, { actorType: "company", req });
+    if (result.error) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
+
+    const company = await Company.findById(result.actorId).select("-password").lean();
+    if (!company) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
+
+    res.cookie(REFRESH_COOKIE_NAME, result.newCookieValue, getRefreshCookieOptions());
+    res.json({ success: true, token: generateToken(company._id, "company") });
+  } catch (error) {
+    logger.error("refreshCompanyToken error:", error);
+    res.status(500).json({ success: false, message: "Server error." });
   }
 };
 

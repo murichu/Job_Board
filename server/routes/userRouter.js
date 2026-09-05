@@ -6,6 +6,7 @@ import {
   getUserJobApplications,
   loginUser,
   logoutUser,
+  refreshUserToken,
   registerUser,
   updateUserResume,
   getResumeAnalytics,
@@ -43,5 +44,6 @@ userRouter.get("/resume/access", accessResume);
 userRouter.get("/resume/analytics", protectedRouteRateLimit, protectUser, getResumeAnalytics);
 
 userRouter.post("/logout", protectedRouteRateLimit, protectUser, logoutUser);
+userRouter.post("/refresh-token", protectedRouteRateLimit, refreshUserToken);
 
 export default userRouter;

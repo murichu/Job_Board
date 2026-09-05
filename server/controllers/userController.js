@@ -11,6 +11,7 @@ import crypto from "crypto";
 import FileDownload from "../models/FileDownload.js";
 import { createSignedFileToken, verifySignedFileToken } from "../utils/signedFileAccess.js";
 import { logger } from "../utils/logger.js";
+import { issueRefreshSession, rotateRefreshSession, revokeRefreshSession, getRefreshCookieOptions, getClearRefreshCookieOptions, REFRESH_COOKIE_NAME } from "../utils/refreshToken.js";
 
 const hashUrl = (url) => crypto.createHash("sha256").update(url).digest("hex");
 
@@ -117,6 +118,10 @@ export const registerUser = async (req, res) => {
     });
 
     // Return success with token
+    const accessToken = generateToken(user._id, "user");
+    const refreshCookie = await issueRefreshSession({ actorId: user._id, actorType: "user", req });
+    res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+
     return res.status(201).json({
       success: true,
       user: {
@@ -125,7 +130,7 @@ export const registerUser = async (req, res) => {
         email: user.email,
         image: user.image,
       },
-      token: generateToken(user._id, "user"),
+      token: accessToken,
       message: "Account created successfully",
     });
   } catch (error) {
@@ -202,6 +207,10 @@ export const loginUser = async (req, res) => {
     }
 
     // If authentication is successful, return user details and a JWT token
+    const accessToken = generateToken(user._id, "user");
+    const refreshCookie = await issueRefreshSession({ actorId: user._id, actorType: "user", req });
+    res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+
     res.json({
       success: true,
       user: {
@@ -210,7 +219,7 @@ export const loginUser = async (req, res) => {
         email: user.email,
         image: user.image,
       },
-      token: generateToken(user._id, "user"), // Generate a token for the session
+      token: accessToken,
       message: "Login successful",
     });
   } catch (error) {
@@ -572,6 +581,42 @@ export const getResumeAnalytics = async (req, res) => {
   res.json({ success: true, totalDownloads, recent, byStatus });
 };
 
-export const logoutUser = (req, res) => {
-  res.json({ success: true, message: "Logged out successfully" });
+export const logoutUser = async (req, res) => {
+  try {
+    const cookieValue = req.cookies?.[REFRESH_COOKIE_NAME];
+    if (cookieValue) await revokeRefreshSession(cookieValue, { actorType: "user" });
+    res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+    res.json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    logger.error("logoutUser error:", error);
+    res.json({ success: true, message: "Logged out successfully" });
+  }
+};
+
+// Exchanges a valid httpOnly refresh-token cookie for a new short-lived access token, rotating the refresh session.
+export const refreshUserToken = async (req, res) => {
+  try {
+    const cookieValue = req.cookies?.[REFRESH_COOKIE_NAME];
+    if (!cookieValue) {
+      return res.status(401).json({ success: false, message: "No refresh token provided" });
+    }
+
+    const result = await rotateRefreshSession(cookieValue, { actorType: "user", req });
+    if (result.error) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
+
+    const user = await User.findById(result.actorId).select("-password").lean();
+    if (!user) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
+
+    res.cookie(REFRESH_COOKIE_NAME, result.newCookieValue, getRefreshCookieOptions());
+    res.json({ success: true, token: generateToken(user._id, "user") });
+  } catch (error) {
+    logger.error("refreshUserToken error:", error);
+    res.status(500).json({ success: false, message: "Server error." });
+  }
 };

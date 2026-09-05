@@ -16,6 +16,8 @@ import {
   getCompanyProfileCompleteness,
   updateCompanyProfile,
   loginCompany,
+  logoutCompany,
+  refreshCompanyToken,
   postJob,
   repostJob,
   registerCompany,
@@ -53,6 +55,8 @@ companyRouter.post(
 
 // Company login
 companyRouter.post("/login", loginCompany);
+companyRouter.post("/logout", protectCompany, logoutCompany);
+companyRouter.post("/refresh-token", refreshCompanyToken);
 
 // Get company details
 companyRouter.get("/company", protectCompany, getCompanyData);
