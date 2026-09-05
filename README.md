@@ -23,5 +23,3 @@ cd server && npm install && npm run dev
 Refactored on `dev` branch with improved state management.
 
 A request-ID middleware (e.g. uuid + x-request-id header) threaded into AuditLog/FinancialAuditLog writes, and actually calling AuditLog.create from key actions.
-
-Fixing or removing the broken enforceSingleSession single-device-login feature.

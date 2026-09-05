@@ -50,6 +50,8 @@ const parseCookieValue = (value) => {
   return { sessionId, rawToken };
 };
 
+export const getSessionIdFromCookieValue = (value) => parseCookieValue(value)?.sessionId || null;
+
 // Verifies the refresh cookie against the stored session and rotates it (revoke old, issue new).
 // Detects refresh-token reuse (a revoked/invalid token presented again) and revokes all sessions for that actor as a precaution.
 export const rotateRefreshSession = async (cookieValue, { actorType = "user", req } = {}) => {
@@ -84,8 +86,9 @@ export const rotateRefreshSession = async (cookieValue, { actorType = "user", re
     tenantId: session.tenantId,
     req,
   });
+  const newSessionId = getSessionIdFromCookieValue(newCookieValue);
 
-  return { actorId: session.userId, tenantId: session.tenantId, newCookieValue };
+  return { actorId: session.userId, tenantId: session.tenantId, newCookieValue, newSessionId };
 };
 
 export const revokeRefreshSession = async (cookieValue, { actorType = "user" } = {}) => {
@@ -93,6 +96,21 @@ export const revokeRefreshSession = async (cookieValue, { actorType = "user" } =
   if (!parsed) return;
   await RefreshSession.updateOne(
     { sessionId: parsed.sessionId, actorType, revokedAt: null },
+    { $set: { revokedAt: new Date() } }
+  );
+};
+
+export const revokeAllRefreshSessionsForActor = async (actorId, { actorType = "user" } = {}) => {
+  await RefreshSession.updateMany(
+    { userId: actorId, actorType, revokedAt: null },
+    { $set: { revokedAt: new Date() } }
+  );
+};
+
+export const revokeRefreshSessionBySessionId = async (sessionId, { actorType = "user" } = {}) => {
+  if (!sessionId) return;
+  await RefreshSession.updateOne(
+    { sessionId, actorType, revokedAt: null },
     { $set: { revokedAt: new Date() } }
   );
 };
