@@ -13,8 +13,6 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: "Company", default: null, index: true },
-    activeSessionId: { type: String, default: null },
-    activeDevice: { type: String, default: "" },
     emailVerified: { type: Boolean, default: false },
     lastLogin: { type: Date, default: Date.now },
     isActive: { type: Boolean, default: true },

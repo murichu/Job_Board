@@ -78,9 +78,9 @@ app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(attachRequestId);
 app.use(createCsrfGuard({ allowedOrigins }));
 app.use(morgan("dev"));
-app.use(attachRequestId);
 
 app.use("/uploads", express.static("uploads"));
 

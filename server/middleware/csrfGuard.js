@@ -1,7 +1,6 @@
 import { REFRESH_COOKIE_NAME } from "../utils/refreshToken.js";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const SAME_SITE_VALUES = new Set(["same-origin", "same-site", "none"]);
 
 const toOrigin = (value) => {
   try {
@@ -31,11 +30,6 @@ export const createCsrfGuard = ({ allowedOrigins = [] } = {}) => {
       return res.status(403).json({ success: false, message: "CSRF validation failed." });
     }
 
-    const fetchSite = req.get("sec-fetch-site");
-    if (fetchSite && !SAME_SITE_VALUES.has(fetchSite)) {
-      return res.status(403).json({ success: false, message: "CSRF validation failed." });
-    }
-
-    return next();
+    return res.status(403).json({ success: false, message: "CSRF validation failed." });
   };
 };

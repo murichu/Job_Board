@@ -2,6 +2,7 @@ import TenantSubscription from "../models/TenantSubscription.js";
 import Invoice from "../models/Invoice.js";
 import MpesaPayment from "../models/MpesaPayment.js";
 import RefundRequest from "../models/RefundRequest.js";
+import mongoose from "mongoose";
 import { generateInvoicePDF } from "../services/pdfService.js";
 import { sendEmail } from "../services/emailService.js";
 import { invoicePaidTemplate } from "../templates/emailTemplates.js";
@@ -25,6 +26,9 @@ export const getPaymentHistory = async (req, res) => {
 
 export const requestRefund = async (req, res) => {
   const { invoiceId, paymentId, amount, reason = "Customer requested refund" } = req.body;
+  if (invoiceId && !mongoose.Types.ObjectId.isValid(String(invoiceId))) {
+    return res.status(400).json({ success: false, message: "Invalid invoice ID." });
+  }
 
   const invoice = invoiceId ? await Invoice.findOne({ _id: invoiceId, tenantId: req.user.tenantId }) : null;
   const currency = await resolveRefundCurrency({ invoice, paymentId });
@@ -36,22 +40,26 @@ export const requestRefund = async (req, res) => {
     amount: amount || invoice?.amount || 0,
     reason,
   });
-  await logFinancialEvent({
-    tenantId: req.user.tenantId,
-    actorId: req.user._id,
-    action: "billing.refund_requested",
-    entityType: "RefundRequest",
-    entityId: refundRequest._id,
-    amount: refundRequest.amount,
-    currency,
-    req,
-    after: { status: refundRequest.status },
-    metadata: {
-      paymentId: refundRequest.paymentId,
-      invoiceId: invoice?._id || null,
-      reason: refundRequest.reason,
-    },
-  });
+  try {
+    await logFinancialEvent({
+      tenantId: req.user.tenantId,
+      actorId: req.user._id,
+      action: "billing.refund_requested",
+      entityType: "RefundRequest",
+      entityId: refundRequest._id,
+      amount: refundRequest.amount,
+      currency,
+      req,
+      after: { status: refundRequest.status },
+      metadata: {
+        paymentId: refundRequest.paymentId,
+        invoiceId: invoice?._id || null,
+        reason: refundRequest.reason,
+      },
+    });
+  } catch (error) {
+    console.error("Financial audit log failed", error);
+  }
 
   res.json({ success: true, request: refundRequest });
 };

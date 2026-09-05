@@ -21,20 +21,24 @@ const updateRefundStatus = async (req, res, status, defaultNotes) => {
   refundRequest.notes = req.body.notes || defaultNotes;
   await refundRequest.save();
   if (statusChanged) {
-    const currency = await resolveRefundCurrency({ paymentId: refundRequest.paymentId });
-    await logFinancialEvent({
-      tenantId: refundRequest.tenantId,
-      actorId: req.user._id,
-      action: `refund.${status}`,
-      entityType: "RefundRequest",
-      entityId: refundRequest._id,
-      amount: refundRequest.amount,
-      currency,
-      req,
-      before: { status: previousStatus },
-      after: { status: refundRequest.status },
-      metadata: { notes: refundRequest.notes },
-    });
+    try {
+      const currency = await resolveRefundCurrency({ paymentId: refundRequest.paymentId });
+      await logFinancialEvent({
+        tenantId: refundRequest.tenantId,
+        actorId: req.user._id,
+        action: `refund.${status}`,
+        entityType: "RefundRequest",
+        entityId: refundRequest._id,
+        amount: refundRequest.amount,
+        currency,
+        req,
+        before: { status: previousStatus },
+        after: { status: refundRequest.status },
+        metadata: { notes: refundRequest.notes },
+      });
+    } catch (error) {
+      console.error("Financial audit log failed", error);
+    }
   }
 
   res.json({ success: true, request: refundRequest });
@@ -50,19 +54,23 @@ export const createRefundRequest = async (req, res) => {
     userId: req.user._id,
     tenantId: req.user.tenantId,
   });
-  const currency = await resolveRefundCurrency({ paymentId: refundRequest.paymentId });
-  await logFinancialEvent({
-    tenantId: req.user.tenantId,
-    actorId: req.user._id,
-    action: "refund.requested",
-    entityType: "RefundRequest",
-    entityId: refundRequest._id,
-    amount: refundRequest.amount,
-    currency,
-    req,
-    after: { status: refundRequest.status },
-    metadata: { paymentId: refundRequest.paymentId, reason: refundRequest.reason },
-  });
+  try {
+    const currency = await resolveRefundCurrency({ paymentId: refundRequest.paymentId });
+    await logFinancialEvent({
+      tenantId: req.user.tenantId,
+      actorId: req.user._id,
+      action: "refund.requested",
+      entityType: "RefundRequest",
+      entityId: refundRequest._id,
+      amount: refundRequest.amount,
+      currency,
+      req,
+      after: { status: refundRequest.status },
+      metadata: { paymentId: refundRequest.paymentId, reason: refundRequest.reason },
+    });
+  } catch (error) {
+    console.error("Financial audit log failed", error);
+  }
 
   res.json({ success: true, request: refundRequest });
 };
