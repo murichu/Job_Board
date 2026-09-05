@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import CalendarAuth from '../../models/CalendarAuth.js';
-import { encrypt, decrypt } from '../lib/crypto.js';
+import { encrypt, decrypt } from '../crypto.js';
 
 // Scopes used for calendar events
 const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];

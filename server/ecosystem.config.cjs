@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "job-portal-api",
       script: "server.js",
-      instances: "max",
+      instances: process.env.WEB_CONCURRENCY || 1,
       exec_mode: "cluster",
       env: {
         NODE_ENV: "production"
