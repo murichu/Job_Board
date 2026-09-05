@@ -13,6 +13,10 @@ const updateRefundStatus = async (req, res, status, defaultNotes) => {
   }
 
   const previousStatus = refundRequest.status;
+  if (previousStatus === status) {
+    return res.json({ success: true, request: refundRequest });
+  }
+
   refundRequest.status = status;
   refundRequest.reviewedBy = req.user._id;
   refundRequest.reviewedAt = new Date();

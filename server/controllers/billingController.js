@@ -37,7 +37,7 @@ export const requestRefund = async (req, res) => {
   await logFinancialEvent({
     tenantId: req.user.tenantId,
     actorId: req.user._id,
-    action: "refund.requested",
+    action: "billing.refund_requested",
     entityType: "RefundRequest",
     entityId: refundRequest._id,
     amount: refundRequest.amount,
