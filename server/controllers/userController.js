@@ -16,6 +16,7 @@ import {
   rotateRefreshSession,
   revokeRefreshSession,
   revokeAllRefreshSessionsForActor,
+  revokeRefreshSessionBySessionId,
   getSessionIdFromCookieValue,
   getRefreshCookieOptions,
   getClearRefreshCookieOptions,
@@ -134,7 +135,14 @@ export const registerUser = async (req, res) => {
     if (!sessionId) {
       return res.status(500).json({ success: false, message: "Session initialization failed." });
     }
-    await User.updateOne({ _id: user._id }, { $set: { activeSessionId: sessionId } });
+    const registerSessionUpdate = await User.updateOne(
+      { _id: user._id },
+      { $set: { activeSessionId: sessionId } }
+    );
+    if (registerSessionUpdate.matchedCount !== 1) {
+      await revokeRefreshSessionBySessionId(sessionId, { actorType: "user" });
+      return res.status(500).json({ success: false, message: "Session initialization failed." });
+    }
     const accessToken = generateToken(user._id, "user", sessionId);
     res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
     await logAuditEvent({
@@ -226,10 +234,14 @@ export const loginUser = async (req, res) => {
     if (!sessionId) {
       return res.status(500).json({ success: false, message: "Session initialization failed." });
     }
-    await User.updateOne(
+    const loginSessionUpdate = await User.updateOne(
       { _id: user._id },
       { $set: { lastLogin: new Date(), activeSessionId: sessionId } }
     );
+    if (loginSessionUpdate.matchedCount !== 1) {
+      await revokeRefreshSessionBySessionId(sessionId, { actorType: "user" });
+      return res.status(500).json({ success: false, message: "Session initialization failed." });
+    }
     const accessToken = generateToken(user._id, "user", sessionId);
     res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
     await logAuditEvent({
@@ -642,6 +654,7 @@ export const refreshUserToken = async (req, res) => {
       res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
       return res.status(401).json({ success: false, message: "Session expired. Please login again." });
     }
+    const previousSessionId = getSessionIdFromCookieValue(cookieValue);
 
     const user = await User.findById(result.actorId).select("-password").lean();
     if (!user) {
@@ -652,9 +665,16 @@ export const refreshUserToken = async (req, res) => {
       res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
       return res.status(401).json({ success: false, message: "Session expired. Please login again." });
     }
-
+    const refreshSessionUpdate = await User.updateOne(
+      { _id: user._id, activeSessionId: previousSessionId },
+      { $set: { activeSessionId: result.newSessionId } }
+    );
+    if (refreshSessionUpdate.matchedCount !== 1) {
+      await revokeRefreshSessionBySessionId(result.newSessionId, { actorType: "user" });
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
     res.cookie(REFRESH_COOKIE_NAME, result.newCookieValue, getRefreshCookieOptions());
-    await User.updateOne({ _id: user._id }, { $set: { activeSessionId: result.newSessionId } });
     res.json({ success: true, token: generateToken(user._id, "user", result.newSessionId) });
   } catch (error) {
     logger.error("refreshUserToken error:", error);

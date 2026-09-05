@@ -106,3 +106,11 @@ export const revokeAllRefreshSessionsForActor = async (actorId, { actorType = "u
     { $set: { revokedAt: new Date() } }
   );
 };
+
+export const revokeRefreshSessionBySessionId = async (sessionId, { actorType = "user" } = {}) => {
+  if (!sessionId) return;
+  await RefreshSession.updateOne(
+    { sessionId, actorType, revokedAt: null },
+    { $set: { revokedAt: new Date() } }
+  );
+};
