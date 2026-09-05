@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import { sendEmail } from "../services/emailService.js";
 import { applicationStatusTemplate, interviewInviteTemplate } from "../templates/emailTemplates.js";
 import ExcelJS from "exceljs";
+import { logger } from "../utils/logger.js";
 
 const deriveJobStatus = (job) => {
   if (job?.isDeleted) return "expired";
@@ -110,7 +111,7 @@ export const registerCompany = async (req, res) => {
         ],
       });
     } catch (cloudErr) {
-      console.error("Cloudinary upload error:", cloudErr);
+      logger.error("Cloudinary upload error:", cloudErr);
       return res.status(500).json({
         success: false,
         message: "Image upload failed. Please try again.",
@@ -146,7 +147,7 @@ export const registerCompany = async (req, res) => {
       message: "Company created successfully",
     });
   } catch (error) {
-    console.error("Register Company error:", error);
+    logger.error("Register Company error:", error);
 
     // Handle specific MongoDB errors
     if (error.code === 11000) {
@@ -210,7 +211,7 @@ export const loginCompany = async (req, res) => {
     });
   } catch (error) {
     // Log any unexpected server errors
-    console.error("Login error:", error);
+    logger.error("Login error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error.",
@@ -232,7 +233,7 @@ export const getCompanyData = async (req, res) => {
     // console.log(company);
   } catch (error) {
     // Log any unexpected server errors
-    console.error("Login error:", error);
+    logger.error("Login error:", error);
 
     // Return a 500 error response indicating a server error
     return res.status(500).json({
@@ -360,7 +361,7 @@ export const postJob = async (req, res) => {
         : "Job submitted for approval successfully.",
     });
   } catch (error) {
-    console.error("postJob error:", error);
+    logger.error("postJob error:", error);
 
     if (error.code === 11000) {
       return res.status(409).json({
@@ -462,7 +463,7 @@ export const repostJob = async (req, res) => {
       job: repostedJob,
     });
   } catch (error) {
-    console.error("repostJob error:", error);
+    logger.error("repostJob error:", error);
 
     if (error.code === 11000) {
       return res.status(409).json({
@@ -509,7 +510,7 @@ export const getCompanyJobApplicants = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("getCompanyJobApplicants error:", error);
+    logger.error("getCompanyJobApplicants error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error.",
@@ -565,7 +566,7 @@ export const getCompanyPostedJobs = async (req, res) => {
     return res.json({ success: true, jobsData });
   } catch (error) {
     // Handle unexpected server errors
-    console.error("getCompanyPostedJobs error:", error);
+    logger.error("getCompanyPostedJobs error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error.",
@@ -663,7 +664,7 @@ export const ChangeJobApplicationStatus = async (req, res) => {
       application,
     });
   } catch (error) {
-    console.error("ChangeJobApplicationStatus error:", error);
+    logger.error("ChangeJobApplicationStatus error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error.",
@@ -688,7 +689,7 @@ export const updateCompanyStages = async (req, res) => {
     ).lean();
     return res.json({ success: true, stages: updated.interviewStages });
   } catch (error) {
-    console.error("updateCompanyStages error:", error);
+    logger.error("updateCompanyStages error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -765,7 +766,7 @@ export const scheduleInterview = async (req, res) => {
       interview: application.interview,
     });
   } catch (error) {
-    console.error("scheduleInterview error:", error);
+    logger.error("scheduleInterview error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -800,7 +801,7 @@ export const submitInterviewFeedback = async (req, res) => {
       message: "Feedback recorded successfully.",
     });
   } catch (error) {
-    console.error("submitInterviewFeedback error:", error);
+    logger.error("submitInterviewFeedback error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -832,7 +833,7 @@ export const getInterviewAnalytics = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("getInterviewAnalytics error:", error);
+    logger.error("getInterviewAnalytics error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -866,7 +867,7 @@ export const sendInterviewReminders = async (req, res) => {
       count: applications.length,
     });
   } catch (error) {
-    console.error("sendInterviewReminders error:", error);
+    logger.error("sendInterviewReminders error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -896,7 +897,7 @@ export const getCompanyNotifications = async (req, res) => {
 
     return res.json({ success: true, notifications });
   } catch (error) {
-    console.error("getCompanyNotifications error:", error);
+    logger.error("getCompanyNotifications error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -917,7 +918,7 @@ export const updateCompanyRichProfile = async (req, res) => {
     ).lean();
     return res.json({ success: true, company: updated });
   } catch (error) {
-    console.error("updateCompanyRichProfile error:", error);
+    logger.error("updateCompanyRichProfile error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -972,7 +973,7 @@ export const updateCompanyProfile = async (req, res) => {
 
     return res.json({ success: true, company });
   } catch (error) {
-    console.error("updateCompanyProfile error:", error);
+    logger.error("updateCompanyProfile error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -1074,7 +1075,7 @@ export const ChangeJobVisibility = async (req, res) => {
     });
   } catch (error) {
     // Log any unexpected server errors
-    console.error("ChangeJobVisibility error:", error);
+    logger.error("ChangeJobVisibility error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error.",
@@ -1118,7 +1119,7 @@ export const moderateJobApproval = async (req, res) => {
       job,
     });
   } catch (error) {
-    console.error("moderateJobApproval error:", error);
+    logger.error("moderateJobApproval error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -1142,7 +1143,7 @@ export const submitJobForApproval = async (req, res) => {
 
     return res.json({ success: true, message: "Job submitted for approval.", job });
   } catch (error) {
-    console.error("submitJobForApproval error:", error);
+    logger.error("submitJobForApproval error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -1193,7 +1194,7 @@ export const softDeleteJob = async (req, res) => {
       message: "Job deleted successfully.",
     });
   } catch (error) {
-    console.error("softDeleteJob error:", error);
+    logger.error("softDeleteJob error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error.",
@@ -1246,7 +1247,7 @@ export const getCompanyReportsSummary = async (req, res) => {
       ...report,
     });
   } catch (error) {
-    console.error("getCompanyReportsSummary error:", error);
+    logger.error("getCompanyReportsSummary error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
@@ -1358,7 +1359,7 @@ export const downloadCompanyReportExcel = async (req, res) => {
     await workbook.xlsx.write(res);
     return res.end();
   } catch (error) {
-    console.error("downloadCompanyReportExcel error:", error);
+    logger.error("downloadCompanyReportExcel error:", error);
     return res.status(500).json({ success: false, message: "Failed to generate Excel report: " + error.message });
   }
 };
@@ -1417,7 +1418,7 @@ export const downloadCompanyReportPDF = async (req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.send(html);
   } catch (error) {
-    console.error("downloadCompanyReportPDF error:", error);
+    logger.error("downloadCompanyReportPDF error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };

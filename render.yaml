@@ -20,6 +20,8 @@ services:
         value: Job-portal
       - key: JWT_SECRET
         value: 84d906e004e861a05c5135ac1a860e243e14ec747497d7ea9927c88a7a975964
+      - key: SECRET_ENCRYPTION_KEY
+        value: aMWpx59zVCnEV1OBYnvU8VgKZ/HOypdbvHfJ4SaA/HI=
       - key: CLIENT_URL
         value: http://localhost:5174
       - key: REDIS_URL

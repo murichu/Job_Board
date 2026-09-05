@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import Company from "../models/Company.js";
+import { logger } from "../utils/logger.js";
 
 // Middleware to protect routes by verifying the token and attaching the company to the request
 export const protectCompany = async (req, res, next) => {
@@ -60,7 +61,7 @@ export const protectCompany = async (req, res, next) => {
 
     next(); // Proceed to next middleware or route handler
   } catch (error) {
-    console.error("protectCompany error:", error);
+    logger.error("protectCompany error:", error);
 
     // Handle different JWT errors
     if (error.name === "TokenExpiredError") {

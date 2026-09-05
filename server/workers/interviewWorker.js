@@ -1,9 +1,12 @@
 import { Worker, Queue } from 'bullmq';
+import connectDB from '../config/mongoDB.js';
 import connection from '../utils/redis.js';
 import Interview from '../models/Interview.js';
 import User from '../models/User.js';
 import { createGoogleCalendarEvent } from '../lib/calendar/google.js';
 import { emailQueue } from '../queues/emailQueue.js';
+
+await connectDB();
 
 const connectionOpts = { connection: connection };
 

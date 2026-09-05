@@ -1,5 +1,6 @@
 import FileDownload from "../models/FileDownload.js";
 import MpesaPayment from "../models/MpesaPayment.js";
+import { logger } from "../utils/logger.js";
 
 export const getGlobalAnalytics = async (req, res) => {
   const total = await FileDownload.countDocuments({ status: "success" });
@@ -28,6 +29,7 @@ export const getFraudData = async (req, res) => {
       .limit(100);
     res.json({ success: true, payments });
   } catch (error) {
+    logger.error("getFraudData error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

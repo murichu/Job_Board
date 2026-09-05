@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import FileDownload from "../models/FileDownload.js";
 import { createSignedFileToken, verifySignedFileToken } from "../utils/signedFileAccess.js";
+import { logger } from "../utils/logger.js";
 
 const hashUrl = (url) => crypto.createHash("sha256").update(url).digest("hex");
 
@@ -99,7 +100,7 @@ export const registerUser = async (req, res) => {
         });
         imageUrl = imageUpload.secure_url;
       } catch (cloudErr) {
-        console.error("Cloudinary upload error:", cloudErr);
+        logger.error("Cloudinary upload error:", cloudErr);
         return res.status(500).json({
           success: false,
           message: "Image upload failed. Please try again.",
@@ -128,7 +129,7 @@ export const registerUser = async (req, res) => {
       message: "Account created successfully",
     });
   } catch (error) {
-    console.error("Register User error:", error);
+    logger.error("Register User error:", error);
 
     // Handle specific MongoDB errors
     if (error.code === 11000) {
@@ -197,7 +198,7 @@ export const loginUser = async (req, res) => {
       await user.save();
     } catch (saveError) {
       // Log but don't fail login for this
-      console.error("Failed to update last login:", saveError);
+      logger.error("Failed to update last login:", saveError);
     }
 
     // If authentication is successful, return user details and a JWT token
@@ -214,7 +215,7 @@ export const loginUser = async (req, res) => {
     });
   } catch (error) {
     // Log any unexpected server errors
-    console.error("Login error:", error);
+    logger.error("Login error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error.",
@@ -278,7 +279,7 @@ export const updateUserProfile = async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({ success: false, message: "Email already in use" });
     }
-    console.error("updateUserProfile Error:", error.message);
+    logger.error("updateUserProfile Error:", error.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -297,7 +298,7 @@ export const getUserData = async (req, res) => {
     //console.log(user);
   } catch (error) {
     // Log any unexpected server errors
-    console.error("Login error:", error);
+    logger.error("Login error:", error);
 
     // Return a 500 error response indicating a server error
     return res.status(500).json({
@@ -384,7 +385,7 @@ export const applyForJob = async (req, res) => {
         message: "You have already applied for this job",
       });
     }
-    console.error("applyForJob Error:", error.message);
+    logger.error("applyForJob Error:", error.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -426,7 +427,7 @@ export const getUserJobApplications = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("getUserJobApplications Error:", error.message);
+    logger.error("getUserJobApplications Error:", error.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -484,7 +485,7 @@ export const updateUserResume = async (req, res) => {
       user: userData,
     });
   } catch (error) {
-    console.error("updateUserResume Error:", error.message);
+    logger.error("updateUserResume Error:", error.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -507,7 +508,7 @@ export const getUserProfileCompleteness = async (req, res) => {
       totalChecks: checks.length,
     });
   } catch (error) {
-    console.error("getUserProfileCompleteness error:", error);
+    logger.error("getUserProfileCompleteness error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };

@@ -1,4 +1,5 @@
 import Incident from "../models/Incident.js";
+import { logger } from "../utils/logger.js";
 
 export const createIncident = async (req, res) => {
   try {
@@ -6,6 +7,7 @@ export const createIncident = async (req, res) => {
     const incident = await Incident.create({ title, message, severity, affectedService, status: status || "investigating" });
     res.json({ success: true, incident });
   } catch (err) {
+    logger.error("createIncident error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -31,6 +33,7 @@ export const updateIncident = async (req, res) => {
     await incident.save();
     res.json({ success: true, incident });
   } catch (err) {
+    logger.error("updateIncident error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

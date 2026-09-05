@@ -1,5 +1,6 @@
 import Job from "../models/Job.js"; // Import the Job model
 import mongoose from "mongoose";
+import { logger } from "../utils/logger.js";
 
 // Controller: Get all visible jobs
 export const getJobs = async (req, res) => {
@@ -21,7 +22,7 @@ export const getJobs = async (req, res) => {
 
     res.json({ success: true, jobs });
   } catch (error) {
-    console.error("getJobs error:", error);
+    logger.error("getJobs error:", error);
 
     return res.status(500).json({
       success: false,
@@ -59,7 +60,7 @@ export const getJobById = async (req, res) => {
 
     res.json({ success: true, job });
   } catch (error) {
-    console.error("getJobById error:", error);
+    logger.error("getJobById error:", error);
 
     return res.status(500).json({
       success: false,

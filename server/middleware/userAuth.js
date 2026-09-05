@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import rateLimit from "express-rate-limit";
+import { logger } from "../utils/logger.js";
 
 // Rate limiting middleware for protected routes
 export const protectedRouteRateLimit = rateLimit({
@@ -72,7 +73,7 @@ export const protectUser = async (req, res, next) => {
 
     next(); // Proceed to next middleware or route handler
   } catch (error) {
-    console.error("protectUser error:", error);
+    logger.error("protectUser error:", error);
 
     // Handle different JWT errors
     if (error.name === "TokenExpiredError") {

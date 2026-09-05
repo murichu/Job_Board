@@ -1,8 +1,11 @@
 import { Worker } from 'bullmq';
+import connectDB from '../config/mongoDB.js';
 import Application from '../models/Application.js';
 import User from '../models/User.js';
 import connection from '../utils/redis.js';
 import { sendEmail } from '../lib/email.js';
+
+await connectDB();
 
 const worker = new Worker('application-notifications', async job => {
   const data = job.data;

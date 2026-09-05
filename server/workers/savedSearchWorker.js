@@ -1,9 +1,12 @@
 import { Worker } from 'bullmq';
+import connectDB from '../config/mongoDB.js';
 import SavedSearch from '../models/SavedSearch.js';
 import Job from '../models/Job.js';
 import User from '../models/User.js';
 import connection from '../utils/redis.js';
 import { emailQueue } from '../queues/emailQueue.js';
+
+await connectDB();
 
 // Simple matching function: keywords in title/description, location match, skills overlap
 function jobMatches(job, saved) {
