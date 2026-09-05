@@ -648,13 +648,17 @@ export const refreshUserToken = async (req, res) => {
     if (!cookieValue) {
       return res.status(401).json({ success: false, message: "No refresh token provided" });
     }
+    const previousSessionId = getSessionIdFromCookieValue(cookieValue);
+    if (!previousSessionId) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
 
     const result = await rotateRefreshSession(cookieValue, { actorType: "user", req });
     if (result.error) {
       res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
       return res.status(401).json({ success: false, message: "Session expired. Please login again." });
     }
-    const previousSessionId = getSessionIdFromCookieValue(cookieValue);
 
     const user = await User.findById(result.actorId).select("-password").lean();
     if (!user) {
