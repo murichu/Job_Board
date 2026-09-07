@@ -67,6 +67,13 @@ export const protectUser = async (req, res, next) => {
         .json({ success: false, message: "User not found" });
     }
 
+    if (!decoded.sessionId || !user.activeSessionId || decoded.sessionId !== user.activeSessionId) {
+      return res.status(401).json({
+        success: false,
+        message: "Session expired. Logged in elsewhere.",
+      });
+    }
+
     // Attach user info to the request for use in next handlers
     req.user = user;
     req.userId = user._id; // Also attach just the ID for convenience
@@ -114,7 +121,7 @@ export const optionalAuth = async (req, res, next) => {
       }
       const user = await User.findById(decoded.id).select("-password").lean();
 
-      if (user) {
+      if (user && decoded.sessionId && user.activeSessionId === decoded.sessionId) {
         req.user = user;
         req.userId = user._id;
       }

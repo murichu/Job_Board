@@ -11,7 +11,18 @@ import crypto from "crypto";
 import FileDownload from "../models/FileDownload.js";
 import { createSignedFileToken, verifySignedFileToken } from "../utils/signedFileAccess.js";
 import { logger } from "../utils/logger.js";
-import { issueRefreshSession, rotateRefreshSession, revokeRefreshSession, getRefreshCookieOptions, getClearRefreshCookieOptions, REFRESH_COOKIE_NAME } from "../utils/refreshToken.js";
+import {
+  issueRefreshSession,
+  rotateRefreshSession,
+  revokeRefreshSession,
+  revokeAllRefreshSessionsForActor,
+  revokeRefreshSessionBySessionId,
+  getSessionIdFromCookieValue,
+  getRefreshCookieOptions,
+  getClearRefreshCookieOptions,
+  REFRESH_COOKIE_NAME,
+} from "../utils/refreshToken.js";
+import { logAuditEvent } from "../services/auditLogService.js";
 
 const hashUrl = (url) => crypto.createHash("sha256").update(url).digest("hex");
 
@@ -118,9 +129,28 @@ export const registerUser = async (req, res) => {
     });
 
     // Return success with token
-    const accessToken = generateToken(user._id, "user");
+    await revokeAllRefreshSessionsForActor(user._id, { actorType: "user" });
     const refreshCookie = await issueRefreshSession({ actorId: user._id, actorType: "user", req });
+    const sessionId = getSessionIdFromCookieValue(refreshCookie);
+    if (!sessionId) {
+      return res.status(500).json({ success: false, message: "Session initialization failed." });
+    }
+    const registerSessionUpdate = await User.updateOne(
+      { _id: user._id },
+      { $set: { activeSessionId: sessionId } }
+    );
+    if (registerSessionUpdate.matchedCount !== 1) {
+      await revokeRefreshSessionBySessionId(sessionId, { actorType: "user" });
+      return res.status(500).json({ success: false, message: "Session initialization failed." });
+    }
+    const accessToken = generateToken(user._id, "user", sessionId);
     res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+    await logAuditEvent({
+      req,
+      userId: user._id,
+      action: "user.register",
+      metadata: { email: sanitizedEmail },
+    });
 
     return res.status(201).json({
       success: true,
@@ -197,19 +227,29 @@ export const loginUser = async (req, res) => {
         .json({ success: false, message: "Invalid email or password" });
     }
 
-    // Update last login time
-    try {
-      user.lastLogin = new Date();
-      await user.save();
-    } catch (saveError) {
-      // Log but don't fail login for this
-      logger.error("Failed to update last login:", saveError);
-    }
-
     // If authentication is successful, return user details and a JWT token
-    const accessToken = generateToken(user._id, "user");
+    await revokeAllRefreshSessionsForActor(user._id, { actorType: "user" });
     const refreshCookie = await issueRefreshSession({ actorId: user._id, actorType: "user", req });
+    const sessionId = getSessionIdFromCookieValue(refreshCookie);
+    if (!sessionId) {
+      return res.status(500).json({ success: false, message: "Session initialization failed." });
+    }
+    const loginSessionUpdate = await User.updateOne(
+      { _id: user._id },
+      { $set: { lastLogin: new Date(), activeSessionId: sessionId } }
+    );
+    if (loginSessionUpdate.matchedCount !== 1) {
+      await revokeRefreshSessionBySessionId(sessionId, { actorType: "user" });
+      return res.status(500).json({ success: false, message: "Session initialization failed." });
+    }
+    const accessToken = generateToken(user._id, "user", sessionId);
     res.cookie(REFRESH_COOKIE_NAME, refreshCookie, getRefreshCookieOptions());
+    await logAuditEvent({
+      req,
+      userId: user._id,
+      action: "user.login",
+      metadata: { email: sanitizedEmail },
+    });
 
     res.json({
       success: true,
@@ -381,6 +421,13 @@ export const applyForJob = async (req, res) => {
       userId,
       jobId,
       date: Date.now(),
+    });
+    await logAuditEvent({
+      req,
+      userId,
+      tenantId: jobData.companyId,
+      action: "job.apply",
+      metadata: { jobId },
     });
 
     res
@@ -585,6 +632,7 @@ export const logoutUser = async (req, res) => {
   try {
     const cookieValue = req.cookies?.[REFRESH_COOKIE_NAME];
     if (cookieValue) await revokeRefreshSession(cookieValue, { actorType: "user" });
+    await User.updateOne({ _id: req.user._id }, { $set: { activeSessionId: null } });
     res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
     res.json({ success: true, message: "Logged out successfully" });
   } catch (error) {
@@ -600,6 +648,11 @@ export const refreshUserToken = async (req, res) => {
     if (!cookieValue) {
       return res.status(401).json({ success: false, message: "No refresh token provided" });
     }
+    const previousSessionId = getSessionIdFromCookieValue(cookieValue);
+    if (!previousSessionId) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
 
     const result = await rotateRefreshSession(cookieValue, { actorType: "user", req });
     if (result.error) {
@@ -612,9 +665,21 @@ export const refreshUserToken = async (req, res) => {
       res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
       return res.status(401).json({ success: false, message: "Session expired. Please login again." });
     }
-
+    if (!result.newSessionId) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
+    const refreshSessionUpdate = await User.updateOne(
+      { _id: user._id, activeSessionId: previousSessionId },
+      { $set: { activeSessionId: result.newSessionId } }
+    );
+    if (refreshSessionUpdate.matchedCount !== 1) {
+      await revokeRefreshSessionBySessionId(result.newSessionId, { actorType: "user" });
+      res.clearCookie(REFRESH_COOKIE_NAME, getClearRefreshCookieOptions());
+      return res.status(401).json({ success: false, message: "Session expired. Please login again." });
+    }
     res.cookie(REFRESH_COOKIE_NAME, result.newCookieValue, getRefreshCookieOptions());
-    res.json({ success: true, token: generateToken(user._id, "user") });
+    res.json({ success: true, token: generateToken(user._id, "user", result.newSessionId) });
   } catch (error) {
     logger.error("refreshUserToken error:", error);
     res.status(500).json({ success: false, message: "Server error." });

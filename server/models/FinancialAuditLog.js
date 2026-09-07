@@ -9,6 +9,7 @@ const financialAuditLogSchema = new mongoose.Schema(
     entityId: { type: mongoose.Schema.Types.ObjectId, default: null, index: true },
     amount: { type: Number, default: 0 },
     currency: { type: String, default: "KES" },
+    requestId: { type: String, default: "", index: true },
     ip: { type: String, default: "" },
     userAgent: { type: String, default: "" },
     before: { type: Object, default: null },

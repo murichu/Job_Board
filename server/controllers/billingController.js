@@ -2,9 +2,12 @@ import TenantSubscription from "../models/TenantSubscription.js";
 import Invoice from "../models/Invoice.js";
 import MpesaPayment from "../models/MpesaPayment.js";
 import RefundRequest from "../models/RefundRequest.js";
+import mongoose from "mongoose";
 import { generateInvoicePDF } from "../services/pdfService.js";
 import { sendEmail } from "../services/emailService.js";
 import { invoicePaidTemplate } from "../templates/emailTemplates.js";
+import { logFinancialEvent } from "../services/financialAuditService.js";
+import { resolveRefundCurrency } from "../services/refundAuditService.js";
 
 export const getSubscription = async (req, res) => {
   const sub = await TenantSubscription.findOne({ tenantId: req.user.tenantId });
@@ -23,18 +26,62 @@ export const getPaymentHistory = async (req, res) => {
 
 export const requestRefund = async (req, res) => {
   const { invoiceId, paymentId, amount, reason = "Customer requested refund" } = req.body;
+  if (!paymentId) {
+    return res.status(400).json({ success: false, message: "Payment ID is required." });
+  }
+  if (invoiceId && !mongoose.Types.ObjectId.isValid(String(invoiceId))) {
+    return res.status(400).json({ success: false, message: "Invalid invoice ID." });
+  }
+  if (!mongoose.Types.ObjectId.isValid(String(paymentId))) {
+    return res.status(400).json({ success: false, message: "Invalid payment ID." });
+  }
 
   const invoice = invoiceId ? await Invoice.findOne({ _id: invoiceId, tenantId: req.user.tenantId }) : null;
+  if (invoiceId && !invoice) {
+    return res.status(404).json({ success: false, message: "Invoice not found" });
+  }
+  const payment = await MpesaPayment.findOne({
+    _id: paymentId,
+    tenantId: req.user.tenantId,
+  }).select("_id invoiceId");
+  if (!payment) {
+    return res.status(404).json({ success: false, message: "Payment not found" });
+  }
+  if (invoice && payment.invoiceId && String(payment.invoiceId) !== String(invoice._id)) {
+    return res.status(400).json({ success: false, message: "Invoice and payment do not match." });
+  }
 
-  const request = await RefundRequest.create({
-    paymentId: paymentId || null,
+  const currency = await resolveRefundCurrency({ invoice, paymentId });
+
+  const refundRequest = await RefundRequest.create({
+    paymentId: payment._id,
     tenantId: req.user.tenantId,
     userId: req.user._id,
     amount: amount || invoice?.amount || 0,
     reason,
   });
+  try {
+    await logFinancialEvent({
+      tenantId: req.user.tenantId,
+      actorId: req.user._id,
+      action: "billing.refund_requested",
+      entityType: "RefundRequest",
+      entityId: refundRequest._id,
+      amount: refundRequest.amount,
+      currency,
+      req,
+      after: { status: refundRequest.status },
+      metadata: {
+        paymentId: refundRequest.paymentId,
+        invoiceId: invoice?._id || null,
+        reason: refundRequest.reason,
+      },
+    });
+  } catch (error) {
+    console.error("Financial audit log failed", error);
+  }
 
-  res.json({ success: true, request });
+  res.json({ success: true, request: refundRequest });
 };
 
 export const downloadInvoicePdf = async (req, res) => {

@@ -1,5 +1,5 @@
 import express from "express";
-import { protectUser } from "../middleware/userAuth.js";
+import { protectUser, protectedRouteRateLimit } from "../middleware/userAuth.js";
 import {
   approveRefundRequest,
   createRefundRequest,
@@ -17,10 +17,10 @@ const requireFinanceAdmin = (req, res, next) => {
   next();
 };
 
-router.post("/request", protectUser, createRefundRequest);
-router.get("/", protectUser, requireFinanceAdmin, getRefundRequests);
-router.patch("/:id/approve", protectUser, requireFinanceAdmin, approveRefundRequest);
-router.patch("/:id/reject", protectUser, requireFinanceAdmin, rejectRefundRequest);
-router.patch("/:id/mark-processed", protectUser, requireFinanceAdmin, markRefundProcessed);
+router.post("/request", protectedRouteRateLimit, protectUser, createRefundRequest);
+router.get("/", protectedRouteRateLimit, protectUser, requireFinanceAdmin, getRefundRequests);
+router.patch("/:id/approve", protectedRouteRateLimit, protectUser, requireFinanceAdmin, approveRefundRequest);
+router.patch("/:id/reject", protectedRouteRateLimit, protectUser, requireFinanceAdmin, rejectRefundRequest);
+router.patch("/:id/mark-processed", protectedRouteRateLimit, protectUser, requireFinanceAdmin, markRefundProcessed);
 
 export default router;

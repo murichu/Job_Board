@@ -10,6 +10,8 @@ import http from "http";
 import connectDB from "./config/mongoDB.js";
 import connectCloudinary from "./config/Cloudinary.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { createCsrfGuard } from "./middleware/csrfGuard.js";
+import { attachRequestId } from "./middleware/requestId.js";
 import { initSocket } from "./socket.js";
 
 import healthRoutes from "./routes/healthRoutes.js";
@@ -77,6 +79,8 @@ app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(attachRequestId);
+app.use(createCsrfGuard({ allowedOrigins }));
 app.use(morgan("dev"));
 
 app.get("/", (req, res) => {
