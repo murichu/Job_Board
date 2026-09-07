@@ -47,7 +47,11 @@ export const handleMpesaCallback = async (req, res) => {
   const payment = await MpesaPayment.findOne({ checkoutRequestId: data.CheckoutRequestID });
   if (!payment) return res.sendStatus(404);
 
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.ip;
+  if (["paid", "failed", "flagged"].includes(payment.status)) {
+    return res.json({ ResultCode: 0, ResultDesc: "Already processed" });
+  }
+
+  const ip = req.ip;
 
   payment.callbackIp = ip;
   payment.status = data.ResultCode === 0 ? "paid" : "failed";

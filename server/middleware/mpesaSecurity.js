@@ -1,7 +1,8 @@
-const allowedProductionIps = (process.env.MPESA_ALLOWED_IPS || "")
-  .split(",")
-  .map((ip) => ip.trim())
-  .filter(Boolean);
+const getAllowedProductionIps = () =>
+  (process.env.MPESA_ALLOWED_IPS || "")
+    .split(",")
+    .map((ip) => ip.trim())
+    .filter(Boolean);
 
 export const validateMpesaConfig = () => {
   const required = [
@@ -22,14 +23,19 @@ export const validateMpesaConfig = () => {
   if (process.env.MPESA_ENV === "production" && !process.env.MPESA_CALLBACK_URL.startsWith("https://")) {
     throw new Error("Production M-Pesa callback URL must use HTTPS.");
   }
+
+  if (process.env.MPESA_ENV === "production" && getAllowedProductionIps().length === 0) {
+    throw new Error("MPESA_ALLOWED_IPS must be configured in production.");
+  }
 };
 
 export const requireMpesaCallbackAllowed = (req, res, next) => {
   if (process.env.MPESA_ENV !== "production") return next();
 
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  const allowedProductionIps = getAllowedProductionIps();
+  const ip = req.ip;
 
-  if (allowedProductionIps.length && !allowedProductionIps.includes(ip)) {
+  if (!allowedProductionIps.includes(ip)) {
     return res.status(403).json({ ResultCode: 1, ResultDesc: "Callback IP not allowed" });
   }
 

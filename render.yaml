@@ -15,13 +15,13 @@ services:
       - key: PORT
         value: 5000
       - key: MONGO_URI
-        value: mongodb+srv://murichuchichi:Raje1680!%40%23%24@cluster0.2h9iyxw.mongodb.net
+        sync: false
       - key: MONGO_DB_NAME
         value: Job-portal
       - key: JWT_SECRET
-        value: 84d906e004e861a05c5135ac1a860e243e14ec747497d7ea9927c88a7a975964
+        sync: false
       - key: SECRET_ENCRYPTION_KEY
-        value: aMWpx59zVCnEV1OBYnvU8VgKZ/HOypdbvHfJ4SaA/HI=
+        sync: false
       - key: CLIENT_URL
         value: http://localhost:5174
       - key: REDIS_URL
@@ -30,11 +30,11 @@ services:
           name: job-portal-redis
           property: connectionString
       - key: CLOUDINARY_NAME
-        value: dw6atnxja
+        sync: false
       - key: CLOUDINARY_API_KEY
-        value: 984547232119995
+        sync: false
       - key: CLOUDINARY_SECRET_KEY
-        value: YPQT0bK0FJqJGZEgHnDglrGCOfU
+        sync: false
       - key: EMAIL_ENABLED
         value: true
       - key: SMTP_HOST
@@ -44,11 +44,13 @@ services:
       - key: SMTP_SECURE
         value: false
       - key: EMAIL_USER
-        value: murichuchichi@gmail.com
+        sync: false
       - key: EMAIL_PASSWORD
-        value: lrek jmbz cdrk otnh
+        sync: false
       - key: EMAIL_FROM_NAME
         value: Job Portal Platform
+      - key: MPESA_ALLOWED_IPS
+        sync: false
       - key: APP_URL
         value: http://localhost:5000
       - key: SAVED_SEARCH_SCHEDULER_INTERVAL_MS

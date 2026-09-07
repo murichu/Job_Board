@@ -19,17 +19,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: 'dist',
     sourcemap: mode === 'production' ? false : true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          ui: ['lucide-react'],
-          editor: ['quill'],
-          state: ['zustand'],
-        },
-      },
-    },
     chunkSizeWarningLimit: 700,
   },
 
